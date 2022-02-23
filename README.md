@@ -1,3 +1,3 @@
-# STEMS
+# Stems Garden
 
-A CC0 sound project
+A collaborative CC0 sound project

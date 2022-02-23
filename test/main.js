@@ -24,7 +24,7 @@ describe("***stems.sol***", async function(){
   
     it('should deploy', async function () {
 
-        const Stems = await hre.ethers.getContractFactory("Stems");
+        const Stems = await hre.ethers.getContractFactory("StemsGarden");
         contract = await Stems.deploy();
         [owner, wallet1, wallet2, wallet3] = await hre.ethers.getSigners();
 
@@ -38,82 +38,46 @@ describe("***stems.sol***", async function(){
         
     it('owner can create season', async function(){
 
-        await contract.createSeason(url1, 50, 60*60*24);
-
-        expect(await contract.next()).to.equal(wallet1.address);
-        expect(left).to.be.greaterThan(0);
+        await contract.createSeason(url1, 50, oneDay);
+        const season = await contract.getSeason(await contract.currentSeasonIndex());
+        expect(season.supply).to.equal(50);
 
     })
 
 
-    it('time left should decrease', async function(){
+    it('season should be closed', async function(){
 
-        let left = await contract.timeLeft();
-        left = left.toNumber();
+        await expect(minter1.mint(url1)).to.be.revertedWith('SEASON_CLOSED');
+        expect(await minter1.seasonOpen()).to.be.false;
 
-        await network.provider.send("evm_increaseTime", [oneDay*5]);
+    })
+
+
+    it('season should be open for minting', async function(){
+
+        await network.provider.send("evm_increaseTime", [oneDay*2]);
         await network.provider.send("evm_mine");
 
-        let newLeft = await contract.timeLeft();
-        newLeft = newLeft.toNumber();
+        await minter1.mint(url1);
+        await minter2.mint(url2);
+        await minter3.mint(url3);
 
-        console.log(toDays(left), toDays(newLeft));
+        const stem1 = await contract.getStem(1);
+        const stem2 = await contract.getStem(2);
+        const stem3 = await contract.getStem(3);
 
-        expect(newLeft).to.be.lessThan(left);
-        
-    })
-
-    it('only delegated should be able to mint', async function(){
-       
-        await expect(minter3.mint(url2, wallet2.address)).to.be.revertedWith('NOT_NEXT');
-
-    });
-
-    it('user1 can mint and pass', async function(){
-
-        await minter1.mint(url2, wallet2.address);
-
-        let left = await contract.timeLeft();
-        left = left.toNumber();
-        
-        expect(await contract.next()).to.equal(wallet2.address);
-        expect(left).to.be.greaterThan(oneDay*6);
-        
-    })
-
-
-    it('on timeout owner can redelegate', async function(){
-       
-        await network.provider.send("evm_increaseTime", [oneDay*7]);
-        await network.provider.send("evm_mine");
-
-        let left = await contract.timeLeft();
-        left = left.toNumber();
-
-        
-        expect(left).to.equal(0);
-        await expect(minter1.delegateNext(wallet1.address)).to.be.revertedWith('Ownable: caller is not the owner');
-
-        await contract.delegateNext(wallet2.address);
-        expect(await contract.next()).to.equal(wallet2.address);
-        left = await contract.timeLeft();
-        left = left.toNumber();
-        expect(left).to.be.greaterThan(oneDay*6)
+        expect(stem1.audio).to.equal(url1);
+        expect(stem2.audio).to.equal(url2);
+        expect(stem3.audio).to.equal(url3);
 
     });
 
 
-    it('user2 can mint and pass', async function(){
+    it('minter can only mint once per season', async function(){
 
-        await minter2.mint(url3, wallet3.address);
+        await expect(minter1.mint(url1)).to.revertedWith('ALREADY_MINTED_SEASON');
 
-        let left = await contract.timeLeft();
-        left = left.toNumber();
-        
-        expect(await contract.next()).to.equal(wallet3.address);
-        expect(left).to.be.greaterThan(0);
-        
-    })
+    });
 
 
     it('generate json', async function(){

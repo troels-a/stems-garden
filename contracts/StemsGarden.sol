@@ -7,16 +7,16 @@ import "./Meta.sol";
 
 /**
 
-____   ___   ____   _  _   ____ 
-[__     |    |___   |\/|   [__  
-___]    |    |___   |  |   ___] 
-                         
-collaborative CC0 audio project
+____    ___    ____    _  _    ____ 
+[__      |     |___    |\/|    [__  
+___]     |     |___    |  |    ___] 
+          
+           g a r d e n
 
 */
 
 
-interface IStems is IERC721 {
+interface IStemsGarden is IERC721 {
 
     struct Stem {
         string audio;
@@ -29,27 +29,29 @@ interface IStems is IERC721 {
         uint supply;
     }
 
-    function next() external view returns(address);
-    function timeLeft() external view returns(int seconds_);
-    function hasContributed(address check_) external view returns(bool);
-    function mint(string memory audio_, address next_) external;
-    function delegateNext(address next_) external;
-    function updateAudio(uint stemID_, string memory audio_) external;
+    function createSeason(string memory audio_, uint amount_, uint begin_) external;
+    function currentSeasonIndex() external view returns(uint);
+    function getSeason(uint season_) external view returns(IStemsGarden.Season memory);
+    function seasonOpen() external view returns(bool);
+    function hasMintedSeason(uint season_, address check_) external view returns(bool);
+    function mint(string memory audio_) external ;
+    function updateStemAudio(uint stemID_, string memory audio_) external;
     function setMetaAddress(address meta_) external;
-    function getStem(uint stemID_) external view returns(IStems.Stem memory);
+    function getStem(uint stemID_) external view returns(IStemsGarden.Stem memory);
+
 
 }
 
-contract Stems is ERC721, Ownable, ReentrancyGuard {
+contract StemsGarden is ERC721, Ownable, ReentrancyGuard {
     
     uint public constant TIMEOUT = 7 days;
 
     uint private _stem_ids;
-    mapping(uint => IStems.Stem) private _stems;
+    mapping(uint => IStemsGarden.Stem) private _stems;
     mapping(uint => mapping(address => bool)) private _minters;
 
     uint private _season;
-    mapping(uint => IStem.Season) private _seasons;
+    mapping(uint => IStemsGarden.Season) private _seasons;
 
     address private _meta;
 
@@ -63,17 +65,17 @@ contract Stems is ERC721, Ownable, ReentrancyGuard {
 
     event AudioUpdated(uint indexed stemID, string oldUri, string newUri);
 
-    constructor() ERC721("Stems", "STEM"){
+    constructor() ERC721("StemsGarden", "STEM"){
         Meta meta_ = new Meta();
         _meta = address(meta_);
     }
 
 
-    function createSeason(string audio_, uint amount_, uint begin_) public onlyOwner {
+    function createSeason(string memory audio_, uint amount_, uint begin_) public onlyOwner {
 
         _season++;
 
-        _seasons[_seasons] = IStems.Season(
+        _seasons[_season] = IStemsGarden.Season(
             audio_,
             block.timestamp+begin_,
             amount_
@@ -81,13 +83,17 @@ contract Stems is ERC721, Ownable, ReentrancyGuard {
 
     }
 
-    function getSeason(uint season_) public returns(IStems.Season){
+    function currentSeasonIndex() public view returns(uint){
+        return _season;
+    }
+
+    function getSeason(uint season_) public view returns(IStemsGarden.Season memory){
         return season_ == 0 ? _seasons[_season] : _seasons[season_];
     }
 
 
-    function seasonOpen() public returns(bool){
-        return (_seasons[_season].begin > block.timestamp);
+    function seasonOpen() public view returns(bool){
+        return (block.timestamp > _seasons[_season].begin);
     }
 
 
@@ -99,27 +105,25 @@ contract Stems is ERC721, Ownable, ReentrancyGuard {
     function mint(string memory audio_) public nonReentrant {
         
         require(seasonOpen(), 'SEASON_CLOSED');
-        require(_stem_ids <= _amounts[_season], 'OUT_OF_SEASON');
+        require(_stem_ids <= _seasons[_season].supply, 'OUT_OF_SEASON');
         require(!hasMintedSeason(_season, msg.sender), 'ALREADY_MINTED_SEASON');
 
         _minters[_season][msg.sender] = true;
 
         _stem_ids++;
-        _stems[_stem_ids] = IStems.Stem(
+        _stems[_stem_ids] = IStemsGarden.Stem(
             audio_,
             _season
         );
         
         _mint(msg.sender, _stem_ids);
-        IMeta(_meta).afterMint(_stem_ids);
-
+        
     }
 
     function updateStemAudio(uint stemID_, string memory audio_) public onlyHolder(stemID_) {
-        require(!_stems[stemID_].locked, 'STEM_LOCKED');
-        string memory oldUri = _audio[stemID_];
+        string memory oldUri = _stems[stemID_].audio;
         _stems[stemID_].audio = audio_;
-        emit StemAudioUpdated(stemID_, oldUri, audio_);
+        emit AudioUpdated(stemID_, oldUri, audio_);
     }
 
 
@@ -127,7 +131,7 @@ contract Stems is ERC721, Ownable, ReentrancyGuard {
         _meta = meta_;
     }
 
-    function getStem(uint stemID_) public view returns(IStems.Stem memory){
+    function getStem(uint stemID_) public view returns(IStemsGarden.Stem memory){
         return _stems[stemID_];
     }
 
