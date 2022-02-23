@@ -36,16 +36,15 @@ describe("***stems.sol***", async function(){
     });
 
         
-    it('owner can mint and pass', async function(){
-        await contract.mint(url1, wallet1.address);
+    it('owner can create season', async function(){
 
-        let left = await contract.timeLeft();
-        left = left.toNumber();
-        console.log(toDays(left));
+        await contract.createSeason(url1, 50, 60*60*24);
+
         expect(await contract.next()).to.equal(wallet1.address);
         expect(left).to.be.greaterThan(0);
 
     })
+
 
     it('time left should decrease', async function(){
 
