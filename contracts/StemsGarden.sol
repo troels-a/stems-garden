@@ -3,6 +3,7 @@ pragma solidity ^0.8.4;
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "./PollyModule.sol";
 import "./Meta.sol";
 
 /**
@@ -16,7 +17,7 @@ ___]     |     |___    |  |    ___]
 */
 
 
-interface IStemsGarden is IERC721 {
+interface IStemsGarden is IERC721, IPollyModule {
 
     struct Stem {
         string audio;
@@ -42,8 +43,8 @@ interface IStemsGarden is IERC721 {
 
 }
 
-contract StemsGarden is ERC721, Ownable, ReentrancyGuard {
-    
+contract StemsGarden is ERC721, PollyModule, ReentrancyGuard {
+
     uint public constant TIMEOUT = 7 days;
 
     uint private _stem_ids;
@@ -65,16 +66,21 @@ contract StemsGarden is ERC721, Ownable, ReentrancyGuard {
 
     event AudioUpdated(uint indexed stemID, string oldUri, string newUri);
 
-    constructor() ERC721("StemsGarden", "STEM"){
-        Meta meta_ = new Meta();
-        _meta = address(meta_);
+    constructor() ERC721("", ""){
     }
 
+    function getModuleInfo() public view returns(IPollyModule.ModuleInfo memory){
+        return IPollyModule.ModuleInfo('Stems Garden', address(this), true);
+    }
 
-    function createSeason(string memory audio_, uint amount_, uint begin_) public onlyOwner {
+    function init(address for_) public override {
+        super.init(for_);
+    }
+
+    function createSeason(string memory audio_, uint amount_, uint begin_) public onlyRole(DEFAULT_ADMIN_ROLE) {
 
         _season++;
-
+        _stem_ids = _season*1000;
         _seasons[_season] = IStemsGarden.Season(
             audio_,
             block.timestamp+begin_,
@@ -93,9 +99,12 @@ contract StemsGarden is ERC721, Ownable, ReentrancyGuard {
 
 
     function seasonOpen() public view returns(bool){
-        return (block.timestamp > _seasons[_season].begin);
+        return (_season > 0 && block.timestamp > _seasons[_season].begin && getAvailable() > 0);
     }
 
+    function getAvailable() public view returns(uint){
+        return _season > 0 ? _seasons[_season].supply - (_stem_ids - (_season*1000)) : 0;
+    }
 
     function hasMintedSeason(uint season_, address check_) public view returns(bool){
         return _minters[season_][check_];
@@ -105,7 +114,6 @@ contract StemsGarden is ERC721, Ownable, ReentrancyGuard {
     function mint(string memory audio_) public nonReentrant {
         
         require(seasonOpen(), 'SEASON_CLOSED');
-        require(_stem_ids <= _seasons[_season].supply, 'OUT_OF_SEASON');
         require(!hasMintedSeason(_season, msg.sender), 'ALREADY_MINTED_SEASON');
 
         _minters[_season][msg.sender] = true;
@@ -120,15 +128,18 @@ contract StemsGarden is ERC721, Ownable, ReentrancyGuard {
         
     }
 
+    function name() public view override returns(string memory){
+        return getString('name');
+    }
+
+    function symbol() public view override returns(string memory){
+        return getString('symbol');
+    }
+
     function updateStemAudio(uint stemID_, string memory audio_) public onlyHolder(stemID_) {
         string memory oldUri = _stems[stemID_].audio;
         _stems[stemID_].audio = audio_;
         emit AudioUpdated(stemID_, oldUri, audio_);
-    }
-
-
-    function setMetaAddress(address meta_) public onlyOwner(){
-        _meta = meta_;
     }
 
     function getStem(uint stemID_) public view returns(IStemsGarden.Stem memory){
@@ -136,8 +147,13 @@ contract StemsGarden is ERC721, Ownable, ReentrancyGuard {
     }
 
     function tokenURI(uint stemID_) public view override returns(string memory) {
-        return IMeta(_meta).getMeta(stemID_);
+        return IMeta(getAddress('meta')).getMeta(stemID_);
     }
 
+    /// Overrides
+
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721, AccessControl) returns (bool) {
+        return super.supportsInterface(interfaceId);
+    }
 
 }

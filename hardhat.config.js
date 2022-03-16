@@ -37,24 +37,24 @@ module.exports = {
     },
   },
   networks: {
-    // hardhat: {
-    //   forking: {
-    //     blockNumber: 13960900,
-    //     url: process.env.MAINNET_FORK_URL,
-    //   }
-    // },
-    // mainnet: {
-    //   url: process.env.MAINNET_RPC_URL,
-    //   accounts: [process.env.PRIVATE_KEY],
-    // },
+    hardhat: {
+      forking: {
+        blockNumber: 14287081,
+        url: process.env.MAINNET_FORK_URL
+      }
+    },
+    mainnet: {
+      url: process.env.MAINNET_RPC_URL,
+      accounts: [process.env.PRIVATE_KEY],
+    },
     rinkeby: {
       url: process.env.RINKEBY_RPC_URL,
       accounts: [process.env.PRIVATE_KEY],
     },
-    // localhost: {
-    //   url: process.env.LOCALHOST_RPC_URL,
-    //   accounts: [process.env.PRIVATE_KEY],
-    // },
+    localhost: {
+      url: process.env.LOCALHOST_RPC_URL,
+      accounts: [process.env.PRIVATE_KEY],
+    },
   },
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY,

@@ -11,19 +11,33 @@ contract Meta {
 
     function getMeta(uint tokenID_) public view returns(string memory){
         
-        IStemsGarden.Stem memory stem_ = IStemsGarden(msg.sender).getStem(tokenID_);
+        IStemsGarden garden_ = IStemsGarden(msg.sender);
+        IStemsGarden.Stem memory stem_ = garden_.getStem(tokenID_);
 
         bytes memory json_ = abi.encodePacked(
         '{',
         '"name":"stems",',
         '"description":"A collaboratove CC0 sound experience",',
-        '"image":"https://tokens.blckv2.xyz/STEMS/stems.png",',
+        '"image":"',getArtwork(tokenID_),'",',
         '"audio":"',stem_.audio,'",',
         '"license": "CC0"',
         '}');
 
         return string(abi.encodePacked('data:application/json;base64,', Base64.encode(json_)));
         
+    }
+
+
+    function getArtwork(uint tokenID_) public view returns(string memory){
+
+        bytes memory svg_ = abi.encodePacked('<svg>',
+        '<rect>',
+        '',
+        '</rect>',
+        '</svg>');
+
+        return string(abi.encodePacked('data:image/svg-xml;base64,', Base64.encode(svg_)));
+
     }
 
 }
