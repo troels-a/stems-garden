@@ -5,7 +5,7 @@ const Preview = require('../preview.js');
 
 const toDays = (seconds) => ((seconds/60)/60)/24;
 
-describe("***stems.sol***", async function(){
+describe("***Stems Garden***", async function(){
 
     let preview;
     let polly;
@@ -41,10 +41,12 @@ describe("***stems.sol***", async function(){
 
         [owner, wallet1, wallet2, wallet3] = await hre.ethers.getSigners();
 
-        const Stems = await hre.ethers.getContractFactory("AudioTokens");
-        contract = await Stems.deploy();
+        const FileTokens = await hre.ethers.getContractFactory("FileTokens");
+        contract = await FileTokens.deploy();
         const Meta = await hre.ethers.getContractFactory("Meta");
         const meta = await Meta.deploy();
+
+        await expect(contract.init(wallet1.address)).to.be.revertedWith('CAN_NOT_INIT');
 
         // // Polly things
         // const Polly = await hre.ethers.getContractFactory('Polly');
@@ -107,13 +109,13 @@ describe("***stems.sol***", async function(){
         await minter2.mint(url2, {value: hre.ethers.utils.parseEther(price)});
         await minter3.mint(url3, {value: hre.ethers.utils.parseEther(price)});
 
-        const stem1 = await contract.getToken(10001);
-        const stem2 = await contract.getToken(10002);
-        const stem3 = await contract.getToken(10003);
+        const file1 = await contract.getToken(10001);
+        const file2 = await contract.getToken(10002);
+        const file3 = await contract.getToken(10003);
 
-        expect(stem1.audio).to.equal(url1);
-        expect(stem2.audio).to.equal(url2);
-        expect(stem3.audio).to.equal(url3);
+        expect(file1.file).to.equal(url1);
+        expect(file2.file).to.equal(url2);
+        expect(file3.file).to.equal(url3);
 
     });
 
@@ -163,12 +165,14 @@ describe("***stems.sol***", async function(){
 
 
     it('generate json', async function(){
+        
         await preview.writeJSON(10001);
         await preview.writeJSON(10002);
         await preview.writeJSON(10003);
         await preview.writeJSON(20001);
         await preview.writeJSON(20002);
         await preview.writeJSON(20003);
+
     });
 
 

@@ -1,6 +1,7 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.4;
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./PollyModule.sol";
@@ -8,52 +9,54 @@ import "./Meta.sol";
 
 /**
 
-____    ___    ____    _  _    ____ 
-[__      |     |___    |\/|    [__  
-___]     |     |___    |  |    ___] 
-          
-           g a r d e n
+FILE TOKENS v1
+A Polly module
 
 */
 
 
-interface IAudioTokens is IERC721, IPollyModule {
+interface IFileTokens is IERC721, IPollyModule {
 
     struct Token {
-        string audio;
+        string file;
         uint batch;
     }
 
     struct Batch {
-        string audio;
+        string file;
         uint begin;
         uint supply;
         uint price;
         address recipient;
     }
 
-    function createBatch(string memory audio_, uint amount_, uint begin_) external;
+    function createBatch(string memory file_, uint amount_, uint begin_, uint price_, address recipient) external;
+    function createBatchPremint(string memory file_, uint amount_, uint begin_, uint price_) external;
     function currentBatchIndex() external view returns(uint);
-    function getBatch(uint batch_index_) external view returns(IAudioTokens.Batch memory);
+    function getBatch(uint batch_index_) external view returns(IFileTokens.Batch memory);
     function batchAvailable() external view returns(bool);
     function getAvailable() external view returns(uint);
     function leftForAddressInBatch(uint batch_index_, address check_) external view returns(bool);
-    function mint(string memory audio_) external ;
-    function updateTokenAudio(uint token_id_, string memory audio_) external;
+    function mint(string memory file_) external ;
+    function updateTokenFile(uint token_id_, string memory file_) external;
     function setMetaAddress(address meta_) external;
-    function getToken(uint token_id_) external view returns(IAudioTokens.Token memory);
-
+    function getToken(uint token_id_) external view returns(IFileTokens.Token memory);
+    function burn(uint token_id_) external;
 
 }
 
-contract AudioTokens is ERC721, PollyModule, ReentrancyGuard {
+interface IMeta {
+    function getMeta(uint token_id_) external view returns(string memory);
+}
+
+contract FileTokens is ERC721, ERC721Burnable, PollyModule, ReentrancyGuard {
 
     uint private _token_ids;
-    mapping(uint => IAudioTokens.Token) private _tokens;
+    mapping(uint => IFileTokens.Token) private _tokens;
     mapping(uint => mapping(address => uint)) private _minters;
 
     uint private _batch;
-    mapping(uint => IAudioTokens.Batch) private _batches;
+    mapping(uint => IFileTokens.Batch) private _batches;
 
     address private _meta;
 
@@ -65,25 +68,27 @@ contract AudioTokens is ERC721, PollyModule, ReentrancyGuard {
 
     //// EVENTS
 
-    event AudioUpdated(uint indexed tokenID, string oldUri, string newUri);
+    event FileUpdated(uint indexed tokenID, string oldUri, string newUri);
 
     constructor() ERC721("", ""){
     }
 
     function getModuleInfo() public view returns(IPollyModule.ModuleInfo memory){
-        return IPollyModule.ModuleInfo('Tokens Garden', address(this), true);
+        return IPollyModule.ModuleInfo('File Tokens', address(this), true);
     }
 
     function init(address for_) public override {
         super.init(for_);
     }
 
-    function createBatch(string memory audio_, uint amount_, uint begin_, uint price_, address recipient_) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function createBatch(string memory file_, uint amount_, uint begin_, uint price_, address recipient_) public onlyRole(DEFAULT_ADMIN_ROLE) {
+
+        require(amount_ < 10000, 'AMOUNT_EXCEEDS_MAX');
 
         _batch++;
         _token_ids = 10000*_batch;
-        _batches[_batch] = IAudioTokens.Batch(
-            audio_,
+        _batches[_batch] = IFileTokens.Batch(
+            file_,
             block.timestamp+begin_,
             amount_,
             price_,
@@ -92,9 +97,9 @@ contract AudioTokens is ERC721, PollyModule, ReentrancyGuard {
 
     }
 
-    function createBatchPremint(string memory audio_, uint amount_, uint begin_, uint price_, address recipient_, address[] memory premints_) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function createBatchPremint(string memory file_, uint amount_, uint begin_, uint price_, address recipient_, address[] memory premints_) public onlyRole(DEFAULT_ADMIN_ROLE) {
 
-        createBatch(audio_, amount_, begin_, price_, recipient_);
+        createBatch(file_, amount_, begin_, price_, recipient_);
 
         if(premints_.length < 1)
             return;
@@ -111,7 +116,8 @@ contract AudioTokens is ERC721, PollyModule, ReentrancyGuard {
         return _batch;
     }
 
-    function getBatch(uint batch_index_) public view returns(IAudioTokens.Batch memory){
+
+    function getBatch(uint batch_index_) public view returns(IFileTokens.Batch memory){
         return batch_index_ == 0 ? _batches[_batch] : _batches[batch_index_];
     }
 
@@ -124,42 +130,44 @@ contract AudioTokens is ERC721, PollyModule, ReentrancyGuard {
         return _batch > 0 ? _batches[_batch].supply - (_token_ids - (_batch*10000)) : 0;
     }
 
-    function canMintCurrentBatch(uint batch_index_, address check_) public view returns(bool){
-
+    function canMintCurrentBatch(address check_) public view returns(bool){
+        if(_batch < 1)
+            return false;
         uint max = getUint('max_mints');
         if(max == 0)
             return true;
-        return (_minters[batch_index_][check_] < max);
+        return (_minters[_batch][check_] < max);
 
     }
 
-    function mint(string memory audio_) public payable nonReentrant {
+    function mint(string memory file_) public payable nonReentrant {
 
-        IAudioTokens.Batch memory batch_ = getBatch(_batch);
+        IFileTokens.Batch memory batch_ = getBatch(_batch);
         require(batch_.price == msg.value, 'INVALID_VALUE');
         require(batchAvailable(), 'BATCH_UNAVAILABLE');
-        require(canMintCurrentBatch(_batch, msg.sender), 'MINT_THRESHOLD_EXCEEDED');
+        require(canMintCurrentBatch(msg.sender), 'MINT_THRESHOLD_EXCEEDED');
 
         if(batch_.price > 0){
             (bool sent_, ) =  batch_.recipient.call{value: msg.value}("");
             require(sent_, 'TX_FAILED');
         }
 
-        _mintTo(msg.sender, audio_);
+        _mintTo(msg.sender, file_);
         
     }
 
-    function _mintTo(address to_, string memory audio_) private {
+    function _mintTo(address to_, string memory file_) private {
         
         _minters[_batch][to_]++;
 
         _token_ids++;
-        _tokens[_token_ids] = IAudioTokens.Token(
-            audio_,
+        _tokens[_token_ids] = IFileTokens.Token(
+            file_,
             _batch
         );
 
         _mint(to_, _token_ids);
+
     }
 
     function name() public view override returns(string memory){
@@ -170,13 +178,14 @@ contract AudioTokens is ERC721, PollyModule, ReentrancyGuard {
         return getString('symbol');
     }
 
-    function updateTokenAudio(uint token_id_, string memory audio_) public onlyHolder(token_id_) {
-        string memory oldUri = _tokens[token_id_].audio;
-        _tokens[token_id_].audio = audio_;
-        emit AudioUpdated(token_id_, oldUri, audio_);
+    function updateTokenFile(uint token_id_, string memory file_) public onlyHolder(token_id_) {
+        string memory oldUri = _tokens[token_id_].file;
+        _tokens[token_id_].file = file_;
+        emit FileUpdated(token_id_, oldUri, file_);
     }
 
-    function getToken(uint token_id_) public view returns(IAudioTokens.Token memory){
+
+    function getToken(uint token_id_) public view returns(IFileTokens.Token memory){
         return _tokens[token_id_];
     }
 

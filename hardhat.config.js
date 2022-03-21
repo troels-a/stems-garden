@@ -1,4 +1,4 @@
-require("dotenv").config({path: '.env.local'});
+require("dotenv").config({path: '.env'});
 require("@nomiclabs/hardhat-waffle");
 require("hardhat-gas-reporter");
 require("@nomiclabs/hardhat-etherscan");
@@ -13,6 +13,7 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
   for (const account of accounts) {
     console.log(account.address);
   }
+  
 });
 
 // You need to export an object to set up your config
