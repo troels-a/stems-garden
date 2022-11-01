@@ -1,0 +1,13 @@
+{
+  "name": "stems-garden",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "sol:test": "cd packages/sol && npx hardhat test"
+  }
+}

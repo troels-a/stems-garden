@@ -1,0 +1,26 @@
+{
+  "name": "@stems-garden/sol",
+  "version": "1.0.0",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^2.0.0",
+    "hardhat": "^2.12.1"
+  },
+  "dependencies": {
+    "@ethersproject/providers": "^5.4.7",
+    "@nomicfoundation/hardhat-chai-matchers": "^1.0.0",
+    "@nomiclabs/hardhat-etherscan": "^3.0.0",
+    "@polly-tools/core": "^1.0.0",
+    "@polly-tools/hardhat-polly": "^1.0.0",
+    "@polly-tools/module-json": "^1.0.0",
+    "@polly-tools/module-meta": "^1.0.0",
+    "@polly-tools/module-royalty-info": "^1.0.0",
+    "@polly-tools/module-token-utils": "^1.0.0",
+    "@polly-tools/module-token721": "^1.0.0",
+    "@polly-tools/polly-token": "^1.0.0",
+    "@typechain/ethers-v5": "^10.1.0",
+    "@types/chai": "^4.2.0",
+    "chai": "^4.2.0",
+    "ethers": "^5.7.2",
+    "typechain": "^8.1.0"
+  }
+}
